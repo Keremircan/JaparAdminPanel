@@ -13,6 +13,7 @@
   --accent-ink: #ffffff;
   --danger: #dc2626;
   --ok: #059669;
+  --chart-bar: #3347d6;
   --shadow-color: rgb(15 23 42 / 0.06);
 }
 
@@ -30,6 +31,7 @@
     --accent-ink: #0b1020;
     --danger: #f87171;
     --ok: #34d399;
+    --chart-bar: #7385f5;
     --shadow-color: rgb(0 0 0 / 0.4);
   }
 }

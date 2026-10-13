@@ -108,3 +108,54 @@ export function formatDateTime(
   if (!date) return EMPTY;
   return `${formatDate(date)} ${formatTime(date, options)}`;
 }
+
+// Türkiye 2016'dan beri kalıcı olarak UTC+3'te; yaz saati uygulaması yok.
+const ISTANBUL_UTC_OFFSET = "+03:00";
+
+const dayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const weekdayShortFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  weekday: "short",
+});
+
+const dayMonthFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  day: "numeric",
+  month: "long",
+  weekday: "long",
+});
+
+/** Verilen anın Türkiye'deki takvim günü: `2026-10-13` */
+export function getIstanbulDayKey(value: Date): string {
+  return dayKeyFormatter.format(value);
+}
+
+/** Türkiye takvim gününün başladığı an (00:00:00 Europe/Istanbul). */
+export function getIstanbulDayStart(dayKey: string): Date {
+  return new Date(`${dayKey}T00:00:00${ISTANBUL_UTC_OFFSET}`);
+}
+
+/** Gün anahtarını ileri/geri kaydırır: `("2026-10-01", -1)` → `2026-09-30` */
+export function shiftDayKey(dayKey: string, days: number): string {
+  const date = new Date(`${dayKey}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** `Sal` */
+export function formatWeekdayShort(value: DateInput): string {
+  const date = parseTimestamp(value);
+  return date ? weekdayShortFormatter.format(date) : EMPTY;
+}
+
+/** `13 Ekim Salı` */
+export function formatDayMonth(value: DateInput): string {
+  const date = parseTimestamp(value);
+  return date ? dayMonthFormatter.format(date) : EMPTY;
+}
