@@ -1,5 +1,6 @@
 import "server-only";
 
+import { MAX_SHIFT_HOURS } from "@/lib/attendance-rules";
 import { requireSession } from "@/lib/auth/guard";
 import {
   formatDayMonth,
@@ -9,6 +10,7 @@ import {
   parseTimestamp,
   shiftDayKey,
 } from "@/lib/date-utils";
+import { fetchAllPages } from "@/lib/supabase/paginate";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export type LogType = "IN" | "OUT";
@@ -54,16 +56,8 @@ export type OverviewData = {
   weeklyEntries: DailyEntryCount[];
 };
 
-/**
- * Bir vardiyanın sürebileceği azami süre. Mobil uygulamadaki kuralla
- * (JaparQrNext/lib/attendance.ts) aynı tutulmalı: son hareketi bundan eski
- * olan personel, çıkış okutmayı unutmuş sayılır ve içeride gösterilmez.
- * Takvim günü yerine süre kullanıldığı için gece vardiyası bölünmez.
- */
-const MAX_SHIFT_HOURS = 16;
 const RECENT_LOG_LIMIT = 15;
 const WEEK_DAYS = 7;
-const PAGE_SIZE = 1000;
 
 type EmployeeRow = { employee_code: string; is_active: boolean };
 
@@ -84,25 +78,6 @@ type RecentLogRow = {
 };
 
 type AdminClient = ReturnType<typeof createAdminClient>;
-
-/** PostgREST tek istekte en fazla 1000 satır döndürdüğü için sayfalayarak okur. */
-async function fetchAllPages<Row>(
-  fetchPage: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>,
-  label: string,
-): Promise<Row[]> {
-  const rows: Row[] = [];
-
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await fetchPage(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`${label} okunamadı: ${error.message}`);
-
-    rows.push(...(data ?? []));
-    if (!data || data.length < PAGE_SIZE) return rows;
-  }
-}
 
 function fetchEmployees(supabase: AdminClient): Promise<EmployeeRow[]> {
   return fetchAllPages<EmployeeRow>(

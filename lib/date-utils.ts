@@ -159,3 +159,41 @@ export function formatDayMonth(value: DateInput): string {
   const date = parseTimestamp(value);
   return date ? dayMonthFormatter.format(date) : EMPTY;
 }
+
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** `2026-10-14` biçiminde ve takvimde var olan bir gün mü? */
+export function isValidDayKey(value: string): boolean {
+  if (!DAY_KEY_PATTERN.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+/** İki gün anahtarı arasındaki gün farkı (`b - a`). */
+export function diffDayKeys(a: string, b: string): number {
+  return Math.round(
+    (Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000,
+  );
+}
+
+/** Haftanın pazartesi günü (Türkiye'de hafta pazartesi başlar). */
+export function getWeekStartDayKey(dayKey: string): string {
+  const weekday = new Date(`${dayKey}T00:00:00Z`).getUTCDay(); // 0 = pazar
+  return shiftDayKey(dayKey, -((weekday + 6) % 7));
+}
+
+/** Ayın ilk günü: `2026-10-14` → `2026-10-01` */
+export function getMonthStartDayKey(dayKey: string): string {
+  return `${dayKey.slice(0, 8)}01`;
+}
+
+/** `8 sa 30 dk`, `45 dk`, `0 dk` */
+export function formatDuration(ms: number): string {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} dk`;
+  return minutes === 0
+    ? `${hours.toLocaleString("tr-TR")} sa`
+    : `${hours.toLocaleString("tr-TR")} sa ${minutes} dk`;
+}

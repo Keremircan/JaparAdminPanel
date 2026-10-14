@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 
 type StatCardProps = {
   label: string;
-  value: number;
+  value: number | string;
   hint: string;
   icon: LucideIcon;
   tone?: "neutral" | "ok";
@@ -34,7 +34,7 @@ export function StatCard({
 
       <div className="mt-3 flex items-center gap-3">
         <p className="text-3xl font-semibold tracking-tight text-ink">
-          {value.toLocaleString("tr-TR")}
+          {typeof value === "number" ? value.toLocaleString("tr-TR") : value}
         </p>
         {isLive && (
           <span className="flex items-center gap-1.5 rounded-md border border-ok/20 bg-ok/10 px-1.5 py-0.5 text-xs font-medium text-ok">
