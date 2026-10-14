@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Toaster } from "sonner";
 
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
@@ -18,6 +19,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>
+      <Toaster
+        position="top-center"
+        theme="system"
+        closeButton
+        toastOptions={{
+          classNames: {
+            toast: "!rounded-xl !border-line !bg-surface !text-ink !shadow-float",
+            description: "!text-ink-soft",
+          },
+        }}
+      />
     </div>
   );
 }

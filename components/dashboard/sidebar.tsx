@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, ShieldCheck, X } from "lucide-react";
@@ -13,9 +14,63 @@ type SidebarProps = {
   onClose: () => void;
 };
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const pathname = usePathname();
+/**
+ * Dinamik sayfalarda (ör. /employees/[code]) yol istek anında belli olur;
+ * o ana kadar menü vurgusuz görünür.
+ */
+function ActiveNavItems({ onNavigate }: { onNavigate: () => void }) {
+  return <NavItems pathname={usePathname()} onNavigate={onNavigate} />;
+}
 
+function NavItems({
+  pathname,
+  onNavigate,
+}: {
+  pathname: string | null;
+  onNavigate: () => void;
+}) {
+  return (
+    <>
+      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        const isActive = pathname !== null && isActivePath(pathname, href);
+
+        return (
+          <li key={href}>
+            <Link
+              href={href}
+              onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
+              className={`group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 ease-in-out focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
+                isActive
+                  ? "bg-sunken text-ink"
+                  : "text-ink-soft hover:bg-sunken/60 hover:text-ink"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`absolute top-1/2 -left-3 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent transition-transform duration-200 ease-in-out ${
+                  isActive ? "scale-y-100" : "scale-y-0"
+                }`}
+              />
+              <Icon
+                aria-hidden
+                strokeWidth={isActive ? 2 : 1.75}
+                className={`size-[18px] shrink-0 transition-colors duration-200 ${
+                  isActive
+                    ? "text-accent"
+                    : "text-ink-faint group-hover:text-ink-soft"
+                }`}
+              />
+              {label}
+            </Link>
+          </li>
+        );
+      })}
+    </>
+  );
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
       <div
@@ -52,41 +107,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <nav aria-label="Ana menü" className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1">
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-              const isActive = isActivePath(pathname, href);
-
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    onClick={onClose}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`group relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-200 ease-in-out focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
-                      isActive
-                        ? "bg-sunken text-ink"
-                        : "text-ink-soft hover:bg-sunken/60 hover:text-ink"
-                    }`}
-                  >
-                    <span
-                      aria-hidden
-                      className={`absolute top-1/2 -left-3 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent transition-transform duration-200 ease-in-out ${
-                        isActive ? "scale-y-100" : "scale-y-0"
-                      }`}
-                    />
-                    <Icon
-                      aria-hidden
-                      strokeWidth={isActive ? 2 : 1.75}
-                      className={`size-[18px] shrink-0 transition-colors duration-200 ${
-                        isActive
-                          ? "text-accent"
-                          : "text-ink-faint group-hover:text-ink-soft"
-                      }`}
-                    />
-                    {label}
-                  </Link>
-                </li>
-              );
-            })}
+            <Suspense fallback={<NavItems pathname={null} onNavigate={onClose} />}>
+              <ActiveNavItems onNavigate={onClose} />
+            </Suspense>
           </ul>
         </nav>
 

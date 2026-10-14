@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { Suspense, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Menu } from "lucide-react";
 
@@ -82,10 +82,11 @@ function ConnectionStatus() {
   );
 }
 
-export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
-  const pathname = usePathname();
-  const title = findActiveItem(pathname)?.label ?? "Yönetim Paneli";
+function PageTitle() {
+  return <>{findActiveItem(usePathname())?.label ?? "Yönetim Paneli"}</>;
+}
 
+export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-canvas/80 px-4 backdrop-blur-md sm:px-6 lg:px-8">
       <button
@@ -105,7 +106,9 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
             <ChevronRight className="size-3.5" />
           </li>
           <li aria-current="page" className="truncate font-medium text-ink">
-            {title}
+            <Suspense fallback={<span className="text-ink-faint">Yönetim Paneli</span>}>
+              <PageTitle />
+            </Suspense>
           </li>
         </ol>
       </nav>
