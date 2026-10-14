@@ -197,3 +197,33 @@ export function formatDuration(ms: number): string {
     ? `${hours.toLocaleString("tr-TR")} sa`
     : `${hours.toLocaleString("tr-TR")} sa ${minutes} dk`;
 }
+
+const dateTimePartsFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+const DATETIME_INPUT_PATTERN = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/;
+
+/** `<input type="datetime-local">` değeri, Türkiye saatiyle: `2026-10-14T08:05` */
+export function toIstanbulDateTimeInput(value: DateInput): string {
+  const date = parseTimestamp(value);
+  if (!date) return "";
+  const parts = Object.fromEntries(
+    dateTimePartsFormatter.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+/** Türkiye saatiyle girilmiş `2026-10-14T08:05` değerini UTC ana çevirir. */
+export function fromIstanbulDateTimeInput(value: string): Date | null {
+  const match = value.trim().match(DATETIME_INPUT_PATTERN);
+  if (!match || !isValidDayKey(match[1])) return null;
+  const date = new Date(`${match[1]}T${match[2]}:00${ISTANBUL_UTC_OFFSET}`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}

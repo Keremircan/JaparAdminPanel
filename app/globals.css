@@ -60,6 +60,17 @@
 
   --animate-rise: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 
+  --animate-row-flash: row-flash 2.4s ease-out;
+
+  @keyframes row-flash {
+    from {
+      background-color: color-mix(in srgb, var(--ok) 18%, transparent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+
   @keyframes rise {
     from {
       opacity: 0;

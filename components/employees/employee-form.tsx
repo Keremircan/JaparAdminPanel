@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useLayoutEffect, useState, type ReactNode } from "react";
+import {
+  startTransition,
+  useActionState,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CircleAlert, FolderOpen, LoaderCircle } from "lucide-react";
@@ -134,8 +140,6 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
     initialState,
   );
 
-  // Başarısız gönderimde girilen değerler korunur (parola hariç).
-  const values = state.values ?? defaultValues;
   const errors = state.fieldErrors ?? {};
   const fieldProps = (name: EmployeeFormField) => ({
     id: name,
@@ -147,7 +151,17 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
     mode === "create" ? "/employees" : employeePath(defaultValues.employee_code);
 
   return (
-    <form action={formAction} noValidate className={card}>
+    <form
+      noValidate
+      onSubmit={(event) => {
+        // action prop yerine: React hatalı gönderimden sonra formu sıfırlamasın,
+        // girilen değerler (seçim kutuları dahil) yerinde kalsın.
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className={card}
+    >
       <Section
         title="Kimlik bilgileri"
         description="Sicil numarası mobil uygulamada kullanıcı adı olarak kullanılır."
@@ -155,7 +169,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
         <Field name="full_name" label="Ad soyad" error={errors.full_name}>
           <input
             {...fieldProps("full_name")}
-            defaultValue={values.full_name}
+            defaultValue={defaultValues.full_name}
             autoComplete="off"
             required
             maxLength={100}
@@ -170,7 +184,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
         >
           <input
             {...fieldProps("employee_code")}
-            defaultValue={values.employee_code}
+            defaultValue={defaultValues.employee_code}
             disabled={mode === "edit"}
             autoComplete="off"
             required
@@ -182,7 +196,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
         <Field name="department" label="Departman" error={errors.department}>
           <input
             {...fieldProps("department")}
-            defaultValue={values.department}
+            defaultValue={defaultValues.department}
             list="department-options"
             autoComplete="off"
             maxLength={100}
@@ -198,7 +212,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
           <input
             {...fieldProps("hire_date")}
             type="date"
-            defaultValue={values.hire_date}
+            defaultValue={defaultValues.hire_date}
             className={input}
           />
         </Field>
@@ -214,7 +228,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
             type="checkbox"
             role="switch"
             name="is_active"
-            defaultChecked={values.is_active}
+            defaultChecked={defaultValues.is_active}
             className="peer sr-only"
           />
           <span
@@ -231,16 +245,16 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
         <Field name="job" label="Görev" error={errors.job}>
           <input
             {...fieldProps("job")}
-            defaultValue={values.job}
+            defaultValue={defaultValues.job}
             autoComplete="off"
             maxLength={100}
             className={input}
           />
         </Field>
         <Field name="shift_type" label="Vardiya tipi" error={errors.shift_type}>
-          <select {...fieldProps("shift_type")} defaultValue={values.shift_type} className={input}>
+          <select {...fieldProps("shift_type")} defaultValue={defaultValues.shift_type} className={input}>
             <option value="">Seçilmedi</option>
-            {[...new Set([...SHIFT_TYPES, values.shift_type].filter(Boolean))].map((type) => (
+            {[...new Set([...SHIFT_TYPES, defaultValues.shift_type].filter(Boolean))].map((type) => (
               <option key={type} value={type}>
                 {type}
               </option>
@@ -255,7 +269,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
         >
           <input
             {...fieldProps("shift")}
-            defaultValue={values.shift}
+            defaultValue={defaultValues.shift}
             autoComplete="off"
             maxLength={50}
             className={input}
@@ -310,7 +324,7 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
                 {...fieldProps(`drive_links.${kind}`)}
                 type="url"
                 inputMode="url"
-                defaultValue={values.drive_links[kind]}
+                defaultValue={defaultValues.drive_links[kind]}
                 placeholder="https://drive.google.com/…"
                 autoComplete="off"
                 className={`${input} ${kind === "folder" ? "pl-9" : ""}`}

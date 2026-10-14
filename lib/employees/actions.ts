@@ -46,7 +46,6 @@ export async function createEmployee(
       status: "error",
       message: "Formdaki işaretli alanları düzeltin.",
       fieldErrors: parsed.fieldErrors,
-      values: parsed.values,
     };
   }
 
@@ -65,10 +64,9 @@ export async function createEmployee(
         status: "error",
         message: "Bu sicil numarası başka bir çalışana ait.",
         fieldErrors: { employee_code: "Bu sicil numarası zaten kayıtlı." },
-        values,
       };
     }
-    return { status: "error", message: `Çalışan eklenemedi: ${error.message}`, values };
+    return { status: "error", message: `Çalışan eklenemedi: ${error.message}` };
   }
 
   refresh();
@@ -93,7 +91,6 @@ export async function updateEmployee(
       status: "error",
       message: "Formdaki işaretli alanları düzeltin.",
       fieldErrors: parsed.fieldErrors,
-      values: { ...parsed.values, employee_code: employeeCode },
     };
   }
 
@@ -111,7 +108,6 @@ export async function updateEmployee(
     return {
       status: "error",
       message: `Değişiklikler kaydedilemedi: ${error.message}`,
-      values: { ...values, employee_code: employeeCode },
     };
   }
   if (!data?.length) {

@@ -23,7 +23,6 @@ export type EmployeeFormState = {
   status: "idle" | "error" | "success";
   message?: string;
   fieldErrors?: Partial<Record<EmployeeFormField, string>>;
-  values?: EmployeeFormValues;
   /** Başarılı kayıttan sonra yönlendirilecek sicil numarası. */
   employeeCode?: string;
 };
