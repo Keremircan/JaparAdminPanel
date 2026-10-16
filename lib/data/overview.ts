@@ -56,7 +56,7 @@ export type OverviewData = {
   weeklyEntries: DailyEntryCount[];
 };
 
-const RECENT_LOG_LIMIT = 15;
+const RECENT_LOG_LIMIT = 10;
 const WEEK_DAYS = 7;
 
 type EmployeeRow = { employee_code: string; is_active: boolean };
