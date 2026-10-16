@@ -2,6 +2,8 @@
 
 import { startTransition, useActionState, useState, useTransition, type ReactNode } from "react";
 import {
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   ExternalLink,
   FileCheck,
@@ -58,6 +60,23 @@ const CATEGORY_STYLES: Record<DocumentCategory, { badge: string; icon: string; I
 
 const initialState: DocumentFormState = { status: "idle" };
 
+const PAGE_SIZE = 4;
+
+/**
+ * En son eklenen en üstte. Eklenme tarihi bilinmeyen (eski biçimden taşınan)
+ * belgeler en alta, kendi aralarında dizideki sırayla yerleşir.
+ */
+function sortNewestFirst(documents: EmployeeDocument[]): EmployeeDocument[] {
+  return documents
+    .map((document, index) => ({ document, index }))
+    .sort((a, b) => {
+      const aTime = a.document.created_at ? Date.parse(a.document.created_at) : -Infinity;
+      const bTime = b.document.created_at ? Date.parse(b.document.created_at) : -Infinity;
+      return bTime - aTime || b.index - a.index;
+    })
+    .map(({ document }) => document);
+}
+
 function hostname(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -93,12 +112,21 @@ function Field({
   );
 }
 
-function AddDocumentForm({ employeeCode, onDone }: { employeeCode: string; onDone: () => void }) {
+function AddDocumentForm({
+  employeeCode,
+  onDone,
+  onSaved,
+}: {
+  employeeCode: string;
+  onDone: () => void;
+  onSaved: () => void;
+}) {
   const [state, formAction, isPending] = useActionState(
     async (previousState: DocumentFormState, formData: FormData) => {
       const result = await addEmployeeDocument(employeeCode, previousState, formData);
       if (result.status === "success") {
         toast.success(result.message);
+        onSaved();
         onDone();
         return initialState;
       }
@@ -180,6 +208,68 @@ function AddDocumentForm({ employeeCode, onDone }: { employeeCode: string; onDon
   );
 }
 
+function DocumentRow({
+  document,
+  onDelete,
+  isFiller = false,
+}: {
+  document: EmployeeDocument;
+  onDelete: (document: EmployeeDocument) => void;
+  /** Son sayfada boş kalan yeri aynı yükseklikte doldurmak için görünmez kopya. */
+  isFiller?: boolean;
+}) {
+  const style = CATEGORY_STYLES[document.category];
+  const title = documentTitle(document);
+  return (
+    <li
+      className={`flex items-center gap-3 px-5 py-3 ${isFiller ? "invisible" : ""}`}
+      aria-hidden={isFiller || undefined}
+      inert={isFiller}
+    >
+      <span
+        className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${style.icon}`}
+      >
+        <style.Icon aria-hidden className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="truncate text-sm font-medium text-ink">{title}</span>
+          <span
+            className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium ${style.badge}`}
+          >
+            {DOCUMENT_CATEGORY_LABELS[document.category]}
+          </span>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-ink-faint">
+          {document.created_at
+            ? `${formatDateTime(document.created_at)} tarihinde eklendi`
+            : "Eklenme tarihi bilinmiyor"}
+          , {hostname(document.url)}
+        </p>
+      </div>
+      <a
+        href={document.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${buttonSecondary} h-8 px-2.5`}
+      >
+        <ExternalLink aria-hidden className="size-4" />
+        <span className="hidden sm:inline">Görüntüle</span>
+        <span className="sr-only">{title} (yeni sekmede açılır)</span>
+      </a>
+      <button
+        type="button"
+        onClick={() => onDelete(document)}
+        aria-label={`${title}: Sil`}
+        title="Sil"
+        className={`${iconButton} hover:bg-danger/10 hover:text-danger`}
+      >
+        <Trash2 aria-hidden className="size-4" />
+      </button>
+    </li>
+  );
+}
+
 export function DocumentsCard({
   employeeCode,
   documents,
@@ -193,8 +283,15 @@ export function DocumentsCard({
   const [pendingDelete, setPendingDelete] = useState<EmployeeDocument | null>(null);
   const [isDeleting, startDelete] = useTransition();
 
-  // En son eklenen üstte.
-  const sorted = [...documents].reverse();
+  const [page, setPage] = useState(1);
+
+  const sorted = sortNewestFirst(documents);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  // Son sayfadaki son belge silinince sayfa kendiliğinden bir öncekine iner.
+  const currentPage = Math.min(page, pageCount);
+  const firstIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageDocuments = sorted.slice(firstIndex, firstIndex + PAGE_SIZE);
+  const goToPage = (target: number) => setPage(Math.min(Math.max(target, 1), pageCount));
 
   const confirmDelete = () => {
     const document = pendingDelete;
@@ -241,56 +338,61 @@ export function DocumentsCard({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-line border-t border-line">
-          {sorted.map((document) => {
-            const style = CATEGORY_STYLES[document.category];
-            const title = documentTitle(document);
-            return (
-              <li key={document.id} className="flex items-center gap-3 px-5 py-3">
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${style.icon}`}
-                >
-                  <style.Icon aria-hidden className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="truncate text-sm font-medium text-ink">{title}</span>
-                    <span
-                      className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium ${style.badge}`}
-                    >
-                      {DOCUMENT_CATEGORY_LABELS[document.category]}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-ink-faint">
-                    {document.created_at
-                      ? `${formatDateTime(document.created_at)} tarihinde eklendi`
-                      : "Eklenme tarihi bilinmiyor"}
-                    , {hostname(document.url)}
-                  </p>
-                </div>
-                <a
-                  href={document.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${buttonSecondary} h-8 px-2.5`}
-                >
-                  <ExternalLink aria-hidden className="size-4" />
-                  <span className="hidden sm:inline">Görüntüle</span>
-                  <span className="sr-only">{title} (yeni sekmede açılır)</span>
-                </a>
+        <>
+          <ul
+            // Sayfa değişince liste yeniden kurulur ve yumuşakça belirir.
+            key={currentPage}
+            className="animate-fade-in divide-y divide-line border-t border-line"
+          >
+            {pageDocuments.map((document) => (
+              <DocumentRow key={document.id} document={document} onDelete={setPendingDelete} />
+            ))}
+            {pageCount > 1 &&
+              Array.from({ length: PAGE_SIZE - pageDocuments.length }, (_, index) => (
+                <DocumentRow
+                  key={`filler-${index}`}
+                  document={pageDocuments[0]}
+                  onDelete={setPendingDelete}
+                  isFiller
+                />
+              ))}
+          </ul>
+
+          {pageCount > 1 && (
+            <nav
+              aria-label="Belge sayfaları"
+              className="flex flex-col gap-3 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p className="text-sm text-ink-faint tabular-nums" aria-live="polite">
+                Toplam {sorted.length.toLocaleString("tr-TR")} belgeden {firstIndex + 1} -{" "}
+                {firstIndex + pageDocuments.length} arası gösteriliyor
+              </p>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setPendingDelete(document)}
-                  aria-label={`${title}: Sil`}
-                  title="Sil"
-                  className={`${iconButton} hover:bg-danger/10 hover:text-danger`}
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`${buttonSecondary} h-8 px-2.5`}
                 >
-                  <Trash2 aria-hidden className="size-4" />
+                  <ChevronLeft aria-hidden className="size-4" />
+                  Önceki
                 </button>
-              </li>
-            );
-          })}
-        </ul>
+                <span className="min-w-[5.5rem] text-center text-sm font-medium text-ink-soft tabular-nums">
+                  Sayfa {currentPage} / {pageCount}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === pageCount}
+                  className={`${buttonSecondary} h-8 px-2.5`}
+                >
+                  Sonraki
+                  <ChevronRight aria-hidden className="size-4" />
+                </button>
+              </div>
+            </nav>
+          )}
+        </>
       )}
 
       <Modal
@@ -299,7 +401,11 @@ export function DocumentsCard({
         title="Yeni belge ekle"
         description="Belgenin Google Drive paylaşım bağlantısını ve kategorisini girin."
       >
-        <AddDocumentForm employeeCode={employeeCode} onDone={() => setIsAdding(false)} />
+        <AddDocumentForm
+          employeeCode={employeeCode}
+          onDone={() => setIsAdding(false)}
+          onSaved={() => setPage(1)}
+        />
       </Modal>
 
       <ConfirmDialog
