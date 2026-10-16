@@ -1,4 +1,5 @@
 import type { LogType } from "@/lib/data/overview";
+import { toLogViolation, type LogViolation } from "@/lib/violations/types";
 
 /** `attendance_logs` satırı. source/note/edited_at migration öncesinde bulunmayabilir. */
 export type AttendanceLog = {
@@ -12,6 +13,11 @@ export type AttendanceLog = {
   source: "app" | "manual";
   note: string | null;
   edited_at: string | null;
+  /**
+   * Hareketin yol açtığı geç gelme / erken çıkma. undefined: henüz bilinmiyor
+   * (Realtime olayı ihlal bilgisi taşımaz; sunucudan tamamlanır).
+   */
+  violation?: LogViolation | null;
 };
 
 export type AttendanceEmployee = {
@@ -44,6 +50,7 @@ export function toAttendanceLog(row: Record<string, unknown>): AttendanceLog | n
     source: row.source === "manual" ? "manual" : "app",
     note: text(row.note),
     edited_at: text(row.edited_at),
+    violation: "violation" in row ? toLogViolation(row.violation) : undefined,
   };
 }
 

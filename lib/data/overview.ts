@@ -12,6 +12,13 @@ import {
 } from "@/lib/date-utils";
 import { fetchAllPages } from "@/lib/supabase/paginate";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getViolationsInRange } from "@/lib/violations/queries";
+import {
+  LOG_VIOLATION_EMBED,
+  toLogViolation,
+  type LogViolation,
+  type ShiftViolation,
+} from "@/lib/violations/types";
 
 export type LogType = "IN" | "OUT";
 
@@ -37,6 +44,14 @@ export type RecentLog = {
   createdAt: string;
   gate: string | null;
   factory: string | null;
+  violation: LogViolation | null;
+};
+
+/** Vardiyası bugün başlayan ihlaller; bir personel en fazla bir kez sayılır. */
+export type TodayViolations = {
+  total: number;
+  lateEmployees: number;
+  earlyLeaveEmployees: number;
 };
 
 export type DailyEntryCount = {
@@ -54,6 +69,7 @@ export type OverviewData = {
   stats: OverviewStats;
   recentLogs: RecentLog[];
   weeklyEntries: DailyEntryCount[];
+  todayViolations: TodayViolations;
 };
 
 const RECENT_LOG_LIMIT = 10;
@@ -75,6 +91,7 @@ type RecentLogRow = {
   gate_id: string | null;
   factory_id: string | null;
   employee: { full_name: string | null } | null;
+  violation: unknown;
 };
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -116,7 +133,7 @@ async function fetchRecentLogs(supabase: AdminClient): Promise<RecentLog[]> {
   const { data, error } = await supabase
     .from("attendance_logs")
     .select(
-      "id, employee_code, log_type, created_at, gate_id, factory_id, employee:employees(full_name)",
+      `id, employee_code, log_type, created_at, gate_id, factory_id, employee:employees(full_name), ${LOG_VIOLATION_EMBED}`,
     )
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -133,7 +150,21 @@ async function fetchRecentLogs(supabase: AdminClient): Promise<RecentLog[]> {
     createdAt: row.created_at,
     gate: row.gate_id,
     factory: row.factory_id,
+    violation: toLogViolation(row.violation),
   }));
+}
+
+function summarizeViolations(violations: ShiftViolation[]): TodayViolations {
+  const late = new Set<string>();
+  const earlyLeave = new Set<string>();
+  for (const violation of violations) {
+    (violation.kind === "late" ? late : earlyLeave).add(violation.employeeCode);
+  }
+  return {
+    total: violations.length,
+    lateEmployees: late.size,
+    earlyLeaveEmployees: earlyLeave.size,
+  };
 }
 
 async function countEntries(
@@ -222,10 +253,11 @@ export async function getOverview(): Promise<OverviewData> {
     shiftDayKey(todayKey, index - (WEEK_DAYS - 1)),
   );
 
-  const [employees, activity, recentLogs, entryCounts] = await Promise.all([
+  const [employees, activity, recentLogs, todayViolations, entryCounts] = await Promise.all([
     fetchEmployees(supabase),
     fetchActivity(supabase, activitySince),
     fetchRecentLogs(supabase),
+    getViolationsInRange(todayKey, todayKey),
     Promise.all(
       dayKeys.map((dayKey) =>
         countEntries(
@@ -241,6 +273,7 @@ export async function getOverview(): Promise<OverviewData> {
     fetchedAt: now.toISOString(),
     stats: buildStats(employees, activity, todayStart, shiftWindowStart),
     recentLogs,
+    todayViolations: summarizeViolations(todayViolations),
     weeklyEntries: dayKeys.map((dayKey, index) => {
       const dayStart = getIstanbulDayStart(dayKey);
       return {

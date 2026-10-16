@@ -10,6 +10,7 @@ import {
   type ReportFilters,
 } from "@/lib/reports/filters";
 import { DAY_STATUS_LABELS, type DayStatus, type TimesheetRow } from "@/lib/reports/timesheet";
+import { VIOLATIONS_TRACKED_SINCE } from "@/lib/violations/types";
 
 const STATUS_STYLES: Record<DayStatus, string> = {
   complete: "border-ok/20 bg-ok/10 text-ok",
@@ -35,6 +36,43 @@ function StatusBadge({ status }: { status: DayStatus }) {
         </span>
       )}
       {DAY_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+function PunctualityCell({ row }: { row: TimesheetRow }) {
+  if (row.beforeTracking) {
+    return (
+      <span
+        title={`Geç gelme ve erken çıkma kaydı ${formatDate(VIOLATIONS_TRACKED_SINCE)} tarihinden itibaren tutuluyor.`}
+        className="text-ink-faint"
+      >
+        Kayıt yok
+      </span>
+    );
+  }
+  if (!row.hasShift) {
+    return (
+      <span title="Vardiya saatleri tanımlı değil; ihlal hesaplanmıyor." className="text-ink-faint">
+        Vardiya tanımsız
+      </span>
+    );
+  }
+  if (row.lateMinutes === 0 && row.earlyLeaveMinutes === 0) {
+    return <span className="text-ok">Zamanında</span>;
+  }
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {row.lateMinutes > 0 && (
+        <span className="rounded-md border border-danger/20 bg-danger/10 px-1.5 py-0.5 text-xs font-medium text-danger">
+          {formatDuration(row.lateMinutes * 60_000)} geç
+        </span>
+      )}
+      {row.earlyLeaveMinutes > 0 && (
+        <span className="rounded-md border border-danger/20 bg-danger/10 px-1.5 py-0.5 text-xs font-medium text-danger">
+          {formatDuration(row.earlyLeaveMinutes * 60_000)} erken
+        </span>
+      )}
     </span>
   );
 }
@@ -99,7 +137,7 @@ export function ReportTable({
       ) : (
         <>
           <div className="overflow-x-auto border-t border-line">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead className="bg-sunken/50">
                 <tr>
                   <th scope="col" className={headerCell}>Tarih</th>
@@ -109,6 +147,7 @@ export function ReportTable({
                   <th scope="col" className={headerCell}>İlk giriş</th>
                   <th scope="col" className={headerCell}>Son çıkış</th>
                   <th scope="col" className={`${headerCell} text-right`}>Toplam süre</th>
+                  <th scope="col" className={headerCell}>Gecikme / erken çıkma</th>
                   <th scope="col" className={headerCell}>Durum</th>
                 </tr>
               </thead>
@@ -146,6 +185,9 @@ export function ReportTable({
                       </td>
                       <td className={`${bodyCell} text-right font-medium text-ink tabular-nums`}>
                         {row.workedMs > 0 ? formatDuration(row.workedMs) : "—"}
+                      </td>
+                      <td className={bodyCell}>
+                        <PunctualityCell row={row} />
                       </td>
                       <td className={bodyCell}>
                         <StatusBadge status={row.status} />

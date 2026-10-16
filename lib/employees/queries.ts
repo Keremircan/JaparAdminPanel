@@ -3,6 +3,7 @@ import "server-only";
 import { requireSession } from "@/lib/auth/guard";
 import type { LogType } from "@/lib/data/overview";
 import { createAdminClient } from "@/lib/supabase/server";
+import { LOG_VIOLATION_EMBED, toLogViolation, type LogViolation } from "@/lib/violations/types";
 
 import {
   parseDriveLinks,
@@ -28,6 +29,7 @@ export type EmployeeLog = {
   createdAt: string;
   gate: string | null;
   factory: string | null;
+  violation: LogViolation | null;
 };
 
 function toEmployee({ device_public_key, drive_links, ...row }: EmployeeRow): Employee {
@@ -119,7 +121,7 @@ export async function getEmployeeLogs(code: string, limit = 10): Promise<Employe
 
   const { data, error } = await createAdminClient()
     .from("attendance_logs")
-    .select("id, log_type, created_at, gate_id, factory_id")
+    .select(`id, log_type, created_at, gate_id, factory_id, ${LOG_VIOLATION_EMBED}`)
     .eq("employee_code", code)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
@@ -131,6 +133,7 @@ export async function getEmployeeLogs(code: string, limit = 10): Promise<Employe
         created_at: string;
         gate_id: string | null;
         factory_id: string | null;
+        violation: unknown;
       }[],
       { merge: false }
     >();
@@ -143,5 +146,6 @@ export async function getEmployeeLogs(code: string, limit = 10): Promise<Employe
     createdAt: row.created_at,
     gate: row.gate_id,
     factory: row.factory_id,
+    violation: toLogViolation(row.violation),
   }));
 }

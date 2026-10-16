@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 
 import { LogTypeBadge } from "@/components/log-type-badge";
+import { ViolationBadge } from "@/components/violation-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { buttonPrimary, buttonSecondary, card, iconButton, input } from "@/components/ui/styles";
 import { deleteLog } from "@/lib/attendance/actions";
@@ -44,6 +45,7 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
 
 const FALLBACK_REFRESH_MS = 15_000;
 const FLASH_MS = 2_400;
+const REALTIME_REFRESH_DELAY_MS = 500;
 
 const headerCell =
   "px-4 py-2.5 text-left text-xs font-medium whitespace-nowrap text-ink-faint first:pl-5 last:pr-5";
@@ -163,6 +165,8 @@ export function AttendanceBoard({ dayKey, todayKey, initialLogs, employees }: At
   const [changes, setChanges] = useState<Map<number, AttendanceLog | null>>(() => new Map());
   const [flashing, setFlashing] = useState<Set<number>>(() => new Set());
 
+  const refreshTimer = useRef<number | undefined>(undefined);
+
   const [dialog, setDialog] = useState<LogDialogTarget | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AttendanceLog | null>(null);
 
@@ -198,8 +202,11 @@ export function AttendanceBoard({ dayKey, todayKey, initialLogs, employees }: At
       });
     }, FLASH_MS);
 
-    // Sayfa açıldıktan sonra eklenen çalışanın adını getirmek için.
-    if (!employeesByCode.has(log.employee_code)) router.refresh();
+    // İhlal kaydı (geç gelme / erken çıkma) ve sayfa açıldıktan sonra eklenen
+    // çalışanın adı Realtime olayında yoktur; art arda gelen olaylar tek
+    // yenilemede toplanır.
+    window.clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(() => router.refresh(), REALTIME_REFRESH_DELAY_MS);
   });
 
   // Realtime kullanılamıyorsa bugünün listesi periyodik olarak tazelenir.
@@ -214,8 +221,12 @@ export function AttendanceBoard({ dayKey, todayKey, initialLogs, employees }: At
   const logs = useMemo(() => {
     const byId = new Map(initialLogs.map((log) => [log.id, log]));
     for (const [id, log] of changes) {
-      if (log) byId.set(id, log);
-      else byId.delete(id);
+      if (!log) {
+        byId.delete(id);
+        continue;
+      }
+      // Realtime satırı ihlal bilgisi taşımaz; sunucudan gelen değer korunur.
+      byId.set(id, { ...log, violation: log.violation ?? byId.get(id)?.violation });
     }
     return [...byId.values()].sort(
       (a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id,
@@ -421,8 +432,13 @@ export function AttendanceBoard({ dayKey, todayKey, initialLogs, employees }: At
                         flashing.has(log.id) ? "animate-row-flash" : ""
                       }`}
                     >
-                      <td className={`${bodyCell} font-mono text-[13px] font-medium text-ink tabular-nums`}>
-                        {formatTime(log.created_at, { seconds: true })}
+                      <td className={bodyCell}>
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono text-[13px] font-medium text-ink tabular-nums">
+                            {formatTime(log.created_at, { seconds: true })}
+                          </span>
+                          {log.violation && <ViolationBadge violation={log.violation} />}
+                        </span>
                       </td>
                       <td className={`${bodyCell} font-medium ${employee ? "text-ink" : "text-ink-faint"}`}>
                         {name}

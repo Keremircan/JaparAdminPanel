@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { ArrowLeftRight, CircleAlert, Clock } from "lucide-react";
+import { ArrowLeftRight, CircleAlert, Clock, Timer } from "lucide-react";
 
 import { TableSkeleton } from "@/components/employees/skeletons";
 import { StatCard } from "@/components/overview/stat-card";
@@ -45,7 +45,7 @@ async function ReportContent({
         </p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Toplam çalışma süresi"
           value={formatDuration(summary.workedMs)}
@@ -68,6 +68,12 @@ async function ReportContent({
               : `${summary.insideCount.toLocaleString("tr-TR")} içeride, ${summary.missingExitCount.toLocaleString("tr-TR")} çıkışı eksik`
           }
           icon={CircleAlert}
+        />
+        <StatCard
+          label="Geç kalma ve erken çıkma"
+          value={formatDuration((summary.lateMinutes + summary.earlyLeaveMinutes) * 60_000)}
+          hint={`${formatDuration(summary.lateMinutes * 60_000)} geç kalma, ${formatDuration(summary.earlyLeaveMinutes * 60_000)} erken çıkma`}
+          icon={Timer}
         />
       </div>
 

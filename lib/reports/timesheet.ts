@@ -5,6 +5,7 @@ import {
   parseTimestamp,
   shiftDayKey,
 } from "@/lib/date-utils";
+import { VIOLATIONS_TRACKED_SINCE, type ShiftViolation } from "@/lib/violations/types";
 
 /**
  * Puantaj hesabı. Saf fonksiyondur: veritabanına dokunmaz, böylece sayfa ve
@@ -18,6 +19,9 @@ import {
  * - Çıkışı olmayan giriş: süre penceresi dolmadıysa "İçeride", dolduysa
  *   "Çıkış eksik". Açık oturumların süresi toplama eklenmez.
  * - Eşleşecek girişi olmayan çıkış "Giriş eksik" olarak işaretlenir.
+ * - Geç gelme / erken çıkma süreleri mobil uygulamanın yazdığı
+ *   shift_violations kayıtlarından gelir; vardiya başlangıç günü (action_date)
+ *   ile satırın günü aynıdır, çünkü oturum da girişin yapıldığı güne yazılır.
  */
 
 export type TimesheetLog = {
@@ -31,7 +35,11 @@ export type TimesheetEmployee = {
   employee_code: string;
   full_name: string;
   department: string | null;
+  /** Vardiya saatleri ihlal hesaplanabilecek biçimde tanımlı mı? */
+  has_shift: boolean;
 };
+
+export type TimesheetViolation = Pick<ShiftViolation, "employeeCode" | "actionDate" | "kind" | "minutes">;
 
 export type DayStatus = "complete" | "inside" | "missing_exit" | "missing_entry";
 
@@ -46,6 +54,12 @@ export type TimesheetRow = {
   lastExit: string | null;
   workedMs: number;
   status: DayStatus;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
+  /** false: vardiya tanımsız, ihlal değerlendirilmedi. */
+  hasShift: boolean;
+  /** true: gün, ihlal kaydı tutulmaya başlanmadan önce; değerlendirilmedi. */
+  beforeTracking: boolean;
 };
 
 export type TimesheetSummary = {
@@ -55,6 +69,8 @@ export type TimesheetSummary = {
   missingExitCount: number;
   missingEntryCount: number;
   employeeCount: number;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
 };
 
 export type Timesheet = { rows: TimesheetRow[]; summary: TimesheetSummary };
@@ -110,12 +126,14 @@ function buildSessions(logs: { type: "IN" | "OUT"; at: number }[], now: number):
 export function computeTimesheet({
   logs,
   employees,
+  violations = [],
   startKey,
   endKey,
   now,
 }: {
   logs: TimesheetLog[];
   employees: Map<string, TimesheetEmployee>;
+  violations?: TimesheetViolation[];
   startKey: string;
   endKey: string;
   now: Date;
@@ -146,6 +164,8 @@ export function computeTimesheet({
     missingExitCount: 0,
     missingEntryCount: 0,
     employeeCount: 0,
+    lateMinutes: 0,
+    earlyLeaveMinutes: 0,
   };
   const employeesWithRows = new Set<string>();
 
@@ -168,6 +188,10 @@ export function computeTimesheet({
         lastExit: null,
         workedMs: 0,
         status: "complete",
+        lateMinutes: 0,
+        earlyLeaveMinutes: 0,
+        hasShift: employee.has_shift,
+        beforeTracking: dayKey < VIOLATIONS_TRACKED_SINCE,
       };
 
       if (session.kind !== "missing_entry") {
@@ -201,6 +225,18 @@ export function computeTimesheet({
   }
 
   summary.employeeCount = employeesWithRows.size;
+
+  for (const violation of violations) {
+    const row = rows.get(`${violation.actionDate}|${violation.employeeCode}`);
+    if (!row) continue;
+    if (violation.kind === "late") {
+      row.lateMinutes += violation.minutes;
+      summary.lateMinutes += violation.minutes;
+    } else {
+      row.earlyLeaveMinutes += violation.minutes;
+      summary.earlyLeaveMinutes += violation.minutes;
+    }
+  }
 
   return {
     rows: [...rows.values()].sort(

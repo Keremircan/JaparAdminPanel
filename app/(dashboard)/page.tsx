@@ -5,6 +5,7 @@ import { ArrowLeftRight, Building2, DoorOpen, Users } from "lucide-react";
 import { OverviewSkeleton } from "@/components/overview/overview-skeleton";
 import { RecentLogsTable } from "@/components/overview/recent-logs-table";
 import { StatCard } from "@/components/overview/stat-card";
+import { ViolationsAlert } from "@/components/overview/violations-alert";
 import { WeeklyEntriesChart } from "@/components/overview/weekly-entries-chart";
 import { getOverview } from "@/lib/data/overview";
 
@@ -13,10 +14,11 @@ export const metadata: Metadata = {
 };
 
 async function OverviewContent() {
-  const { stats, recentLogs, weeklyEntries, fetchedAt } = await getOverview();
+  const { stats, recentLogs, weeklyEntries, todayViolations, fetchedAt } = await getOverview();
 
   return (
     <div className="space-y-6">
+      <ViolationsAlert violations={todayViolations} />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="İçerideki personel"

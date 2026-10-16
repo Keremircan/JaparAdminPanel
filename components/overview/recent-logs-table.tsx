@@ -1,6 +1,7 @@
 import { Inbox } from "lucide-react";
 
 import { LogTypeBadge } from "@/components/log-type-badge";
+import { ViolationBadge } from "@/components/violation-badge";
 import type { RecentLog } from "@/lib/data/overview";
 import { formatDate, formatTime } from "@/lib/date-utils";
 
@@ -85,8 +86,11 @@ export function RecentLogsTable({ logs, fetchedAt }: RecentLogsTableProps) {
                     <LogTypeBadge type={log.type} />
                   </td>
                   <td className={bodyCell}>
-                    <span className="block font-mono text-[13px] font-medium text-ink tabular-nums">
-                      {formatTime(log.createdAt, { seconds: true })}
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-mono text-[13px] font-medium text-ink tabular-nums">
+                        {formatTime(log.createdAt, { seconds: true })}
+                      </span>
+                      {log.violation && <ViolationBadge violation={log.violation} />}
                     </span>
                     <span className="block text-xs text-ink-faint tabular-nums">
                       {formatDate(log.createdAt)}

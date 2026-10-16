@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
     { header: "İlk Giriş", key: "firstEntry", width: 11 },
     { header: "Son Çıkış", key: "lastExit", width: 20 },
     { header: "Toplam Süre (Saat)", key: "hours", width: 19, style: { numFmt: "0.00" } },
+    { header: "Geç Kalma Süresi (Dk)", key: "lateMinutes", width: 22 },
+    { header: "Erken Çıkma Süresi (Dk)", key: "earlyLeaveMinutes", width: 24 },
     { header: "Durum", key: "status", width: 14 },
   ];
 
@@ -52,6 +54,10 @@ export async function GET(request: NextRequest) {
       firstEntry: row.firstEntry ? formatTime(row.firstEntry) : "",
       lastExit: exitLabel(row.dayKey, row.lastExit),
       hours: toHours(row.workedMs),
+      // Vardiyası tanımsız personelde veya ihlal kaydı tutulmaya başlanmadan
+      // önceki günlerde değerlendirme yapılmadı; 0 yerine boş bırakılır.
+      lateMinutes: row.hasShift && !row.beforeTracking ? row.lateMinutes : null,
+      earlyLeaveMinutes: row.hasShift && !row.beforeTracking ? row.earlyLeaveMinutes : null,
       status: DAY_STATUS_LABELS[row.status],
     });
   }
@@ -63,8 +69,13 @@ export async function GET(request: NextRequest) {
   header.height = 20;
 
   if (report.rows.length > 0) {
-    sheet.autoFilter = { from: "A1", to: { row: report.rows.length + 1, column: 8 } };
-    const total = sheet.addRow({ name: "Toplam", hours: toHours(report.summary.workedMs) });
+    sheet.autoFilter = { from: "A1", to: { row: report.rows.length + 1, column: 10 } };
+    const total = sheet.addRow({
+      name: "Toplam",
+      hours: toHours(report.summary.workedMs),
+      lateMinutes: report.summary.lateMinutes,
+      earlyLeaveMinutes: report.summary.earlyLeaveMinutes,
+    });
     total.font = { bold: true };
     total.getCell("hours").numFmt = "0.00";
   }

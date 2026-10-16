@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth/guard";
 import { getIstanbulDayStart, shiftDayKey } from "@/lib/date-utils";
 import { fetchAllPages } from "@/lib/supabase/paginate";
 import { createAdminClient } from "@/lib/supabase/server";
+import { LOG_VIOLATION_EMBED } from "@/lib/violations/types";
 
 import {
   shortDeviceName,
@@ -18,11 +19,12 @@ export async function getDayLogs(dayKey: string): Promise<AttendanceLog[]> {
 
   const supabase = createAdminClient();
   // `*`: source/note/edited_at kolonları migration çalıştırılmadan da sayfa açılsın.
+  // İhlal, attendance_log_id üzerinden aynı sorguda birleştirilir.
   const rows = await fetchAllPages(
     (from, to) =>
       supabase
         .from("attendance_logs")
-        .select("*")
+        .select(`*, ${LOG_VIOLATION_EMBED}`)
         .gte("created_at", getIstanbulDayStart(dayKey).toISOString())
         .lt("created_at", getIstanbulDayStart(shiftDayKey(dayKey, 1)).toISOString())
         .order("created_at", { ascending: false })

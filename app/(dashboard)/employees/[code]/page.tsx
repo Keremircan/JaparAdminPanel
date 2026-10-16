@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 
 import { LogTypeBadge } from "@/components/log-type-badge";
+import { ViolationBadge } from "@/components/violation-badge";
+import { ViolationsCard } from "@/components/employees/violations-card";
 import { DeviceBadge, StatusBadge } from "@/components/employees/badges";
 import {
   DeleteEmployeeButton,
@@ -24,8 +26,16 @@ import {
 } from "@/components/employees/employee-actions";
 import { DetailSkeleton } from "@/components/employees/skeletons";
 import { buttonSecondary, card } from "@/components/ui/styles";
-import { formatDate, formatDateTime, formatTime } from "@/lib/date-utils";
+import {
+  formatDate,
+  formatDateTime,
+  formatMonthYear,
+  formatTime,
+  getIstanbulDayKey,
+} from "@/lib/date-utils";
 import { getEmployee, getEmployeeLogs, type EmployeeLog } from "@/lib/employees/queries";
+import { getEmployeeViolations } from "@/lib/violations/queries";
+import { hasEvaluableShift } from "@/lib/violations/types";
 import {
   DRIVE_LINK_KINDS,
   DRIVE_LINK_LABELS,
@@ -282,8 +292,13 @@ function LogsCard({ logs }: { logs: EmployeeLog[] }) {
                   <td className="px-5 py-3 whitespace-nowrap">
                     <LogTypeBadge type={log.type} />
                   </td>
-                  <td className="px-5 py-3 font-mono text-[13px] font-medium whitespace-nowrap text-ink tabular-nums">
-                    {formatTime(log.createdAt, { seconds: true })}
+                  <td className="px-5 py-3 whitespace-nowrap">
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-[13px] font-medium text-ink tabular-nums">
+                        {formatTime(log.createdAt, { seconds: true })}
+                      </span>
+                      {log.violation && <ViolationBadge violation={log.violation} />}
+                    </span>
                   </td>
                   <td className="px-5 py-3 whitespace-nowrap text-ink-soft tabular-nums">
                     {formatDate(log.createdAt)}
@@ -306,8 +321,14 @@ type Params = PageProps<"/employees/[code]">["params"];
 
 async function EmployeeDetail({ params }: { params: Params }) {
   const code = decodeURIComponent((await params).code);
-  const [employee, logs] = await Promise.all([getEmployee(code), getEmployeeLogs(code, 10)]);
+  const [employee, logs, violations] = await Promise.all([
+    getEmployee(code),
+    getEmployeeLogs(code, 10),
+    getEmployeeViolations(code),
+  ]);
   if (!employee) notFound();
+
+  const todayKey = getIstanbulDayKey(new Date());
 
   return (
     <div className="space-y-6">
@@ -324,6 +345,12 @@ async function EmployeeDetail({ params }: { params: Params }) {
         <DocumentsCard employee={employee} />
       </div>
       <LogsCard logs={logs} />
+      <ViolationsCard
+        violations={violations}
+        monthKey={todayKey.slice(0, 7)}
+        monthLabel={formatMonthYear(`${todayKey}T12:00:00Z`)}
+        hasShift={hasEvaluableShift(employee.shift)}
+      />
     </div>
   );
 }

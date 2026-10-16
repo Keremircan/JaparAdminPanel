@@ -4,6 +4,8 @@ import { requireSession } from "@/lib/auth/guard";
 import { getIstanbulDayKey } from "@/lib/date-utils";
 import { fetchAllPages } from "@/lib/supabase/paginate";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getViolationsInRange } from "@/lib/violations/queries";
+import { hasEvaluableShift } from "@/lib/violations/types";
 
 import { parseReportFilters, type ParsedReportFilters, type ReportFilters } from "./filters";
 import {
@@ -29,13 +31,23 @@ async function fetchEmployees(): Promise<ReportEmployee[]> {
     (from, to) =>
       supabase
         .from("employees")
-        .select("employee_code, full_name, department, is_active")
+        .select("employee_code, full_name, department, is_active, shift")
         .order("full_name")
         .range(from, to)
-        .overrideTypes<(TimesheetEmployee & { is_active: boolean | null })[], { merge: false }>(),
+        .overrideTypes<
+          (Omit<TimesheetEmployee, "has_shift"> & {
+            is_active: boolean | null;
+            shift: string | null;
+          })[],
+          { merge: false }
+        >(),
     "Personel listesi",
   );
-  return rows.map((row) => ({ ...row, is_active: row.is_active !== false }));
+  return rows.map(({ shift, ...row }) => ({
+    ...row,
+    is_active: row.is_active !== false,
+    has_shift: hasEvaluableShift(shift),
+  }));
 }
 
 function fetchLogs(from: Date, to: Date, employeeCode: string): Promise<TimesheetLog[]> {
@@ -68,9 +80,10 @@ export async function getTimesheetReport(
   );
   const window = getTimesheetFetchWindow(filters.start, filters.end, now);
 
-  const [employees, logs] = await Promise.all([
+  const [employees, logs, violations] = await Promise.all([
     fetchEmployees(),
     fetchLogs(window.from, window.to, filters.employee),
+    getViolationsInRange(filters.start, filters.end, filters.employee || undefined),
   ]);
 
   const included = new Map<string, TimesheetEmployee>();
@@ -85,6 +98,7 @@ export async function getTimesheetReport(
     ...computeTimesheet({
       logs,
       employees: included,
+      violations,
       startKey: filters.start,
       endKey: filters.end,
       now,

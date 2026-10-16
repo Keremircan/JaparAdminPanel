@@ -227,3 +227,15 @@ export function fromIstanbulDateTimeInput(value: string): Date | null {
   const date = new Date(`${match[1]}T${match[2]}:00${ISTANBUL_UTC_OFFSET}`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
+
+const monthYearFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  month: "long",
+  year: "numeric",
+});
+
+/** `Ekim 2026` */
+export function formatMonthYear(value: DateInput): string {
+  const date = parseTimestamp(value);
+  return date ? monthYearFormatter.format(date) : EMPTY;
+}
