@@ -2,23 +2,13 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ChevronLeft,
-  ExternalLink,
-  FileCheck,
-  FileText,
-  FolderOpen,
-  HeartPulse,
-  History,
-  Link2Off,
-  Pencil,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronLeft, History, Pencil } from "lucide-react";
 
 import { LogTypeBadge } from "@/components/log-type-badge";
 import { ViolationBadge } from "@/components/violation-badge";
 import { ViolationsCard } from "@/components/employees/violations-card";
 import { DeviceBadge, StatusBadge } from "@/components/employees/badges";
+import { DocumentsCard } from "@/components/employees/documents-card";
 import {
   DeleteEmployeeButton,
   ResetDeviceButton,
@@ -36,23 +26,10 @@ import {
 import { getEmployee, getEmployeeLogs, type EmployeeLog } from "@/lib/employees/queries";
 import { getEmployeeViolations } from "@/lib/violations/queries";
 import { hasEvaluableShift } from "@/lib/violations/types";
-import {
-  DRIVE_LINK_KINDS,
-  DRIVE_LINK_LABELS,
-  employeePath,
-  type DriveLinkKind,
-  type Employee,
-} from "@/lib/employees/types";
+import { employeePath, type Employee } from "@/lib/employees/types";
 
 export const metadata: Metadata = {
   title: "Çalışan Detayı",
-};
-
-const DRIVE_LINK_ICONS: Record<DriveLinkKind, LucideIcon> = {
-  folder: FolderOpen,
-  health_report: HeartPulse,
-  leave_permit: FileCheck,
-  other: FileText,
 };
 
 function initials(name: string): string {
@@ -63,14 +40,6 @@ function initials(name: string): string {
     .slice(0, 2)
     .join("")
     .toLocaleUpperCase("tr");
-}
-
-function hostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
 
 function CardHeader({ title, description }: { title: string; description?: string }) {
@@ -180,82 +149,6 @@ function DeviceCard({ employee }: { employee: Employee }) {
   );
 }
 
-function DocumentsCard({ employee }: { employee: Employee }) {
-  const present = DRIVE_LINK_KINDS.filter((kind) => employee.drive_links[kind]);
-  const missing = DRIVE_LINK_KINDS.filter((kind) => !employee.drive_links[kind]);
-  const editHref = `${employeePath(employee.employee_code)}/edit`;
-
-  return (
-    <section className={`${card} lg:col-span-2`}>
-      <CardHeader title="Drive dokümanları" description="Bağlantılar yeni sekmede açılır." />
-      <div className="border-t border-line p-5">
-        {present.length === 0 ? (
-          <div className="flex flex-col items-center py-6 text-center">
-            <span className="flex size-11 items-center justify-center rounded-xl border border-line bg-sunken text-ink-soft">
-              <Link2Off aria-hidden className="size-5" strokeWidth={1.75} />
-            </span>
-            <p className="mt-4 text-base font-medium text-ink">
-              Doküman bağlantısı eklenmedi
-            </p>
-            <p className="mt-1.5 max-w-[44ch] text-sm leading-relaxed text-ink-soft">
-              Drive klasörü, sağlık raporu ve izin belgesi bağlantılarını çalışanı
-              düzenleyerek ekleyebilirsiniz.
-            </p>
-            <Link href={editHref} className={`${buttonSecondary} mt-5`}>
-              <Pencil aria-hidden className="size-4" />
-              Bağlantı ekle
-            </Link>
-          </div>
-        ) : (
-          <>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {present.map((kind) => {
-                const url = employee.drive_links[kind]!;
-                const Icon = DRIVE_LINK_ICONS[kind];
-                return (
-                  <li key={kind}>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3 transition-all duration-200 ease-in-out hover:border-accent/40 hover:bg-accent/5 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
-                    >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                        <Icon aria-hidden className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-ink">
-                          {DRIVE_LINK_LABELS[kind]}
-                        </span>
-                        <span className="block truncate text-xs text-ink-faint">
-                          {hostname(url)}
-                        </span>
-                      </span>
-                      <ExternalLink
-                        aria-hidden
-                        className="size-4 shrink-0 text-ink-faint transition-colors group-hover:text-accent"
-                      />
-                      <span className="sr-only">(yeni sekmede açılır)</span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-            {missing.length > 0 && (
-              <p className="mt-4 text-sm text-ink-faint">
-                Eklenmemiş: {missing.map((kind) => DRIVE_LINK_LABELS[kind]).join(", ")}.{" "}
-                <Link href={editHref} className="text-accent hover:underline">
-                  Bağlantı ekle
-                </Link>
-              </p>
-            )}
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function LogsCard({ logs }: { logs: EmployeeLog[] }) {
   return (
     <section className={`${card} overflow-hidden`}>
@@ -342,7 +235,11 @@ async function EmployeeDetail({ params }: { params: Params }) {
       <ProfileCard employee={employee} />
       <div className="grid items-start gap-6 lg:grid-cols-3">
         <DeviceCard employee={employee} />
-        <DocumentsCard employee={employee} />
+        <DocumentsCard
+          employeeCode={employee.employee_code}
+          documents={employee.documents}
+          className="lg:col-span-2"
+        />
       </div>
       <LogsCard logs={logs} />
       <ViolationsCard

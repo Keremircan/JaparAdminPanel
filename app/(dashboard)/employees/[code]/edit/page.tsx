@@ -48,12 +48,6 @@ async function EditEmployee({ params }: { params: Params }) {
           shift: employee.shift?.trim() ?? "",
           hire_date: employee.hire_date ?? "",
           is_active: employee.is_active,
-          drive_links: {
-            folder: employee.drive_links.folder ?? "",
-            health_report: employee.drive_links.health_report ?? "",
-            leave_permit: employee.drive_links.leave_permit ?? "",
-            other: employee.drive_links.other ?? "",
-          },
         }}
       />
     </>

@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { LOG_VIOLATION_EMBED, toLogViolation, type LogViolation } from "@/lib/violations/types";
 
 import {
-  parseDriveLinks,
+  parseEmployeeDocuments,
   type Employee,
   type EmployeeFilters,
   type EmployeeStatusFilter,
@@ -17,7 +17,7 @@ const EMPLOYEE_COLUMNS =
 
 const LIST_LIMIT = 1000;
 
-type EmployeeRow = Omit<Employee, "is_device_bound" | "drive_links" | "is_active"> & {
+type EmployeeRow = Omit<Employee, "is_device_bound" | "documents" | "is_active"> & {
   is_active: boolean | null;
   device_public_key: string | null;
   drive_links: unknown;
@@ -38,7 +38,7 @@ function toEmployee({ device_public_key, drive_links, ...row }: EmployeeRow): Em
     // PWA girişi yalnızca is_active === false olanları reddeder.
     is_active: row.is_active !== false,
     is_device_bound: device_public_key !== null,
-    drive_links: parseDriveLinks(drive_links),
+    documents: parseEmployeeDocuments(drive_links),
   };
 }
 

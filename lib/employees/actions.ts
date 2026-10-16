@@ -8,7 +8,6 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 import {
   parseEmployeeForm,
-  toDriveLinks,
   type EmployeeFormState,
   type EmployeeFormValues,
 } from "./form";
@@ -30,7 +29,6 @@ function toRow(values: EmployeeFormValues) {
     shift: values.shift || null,
     hire_date: values.hire_date || null,
     is_active: values.is_active,
-    drive_links: toDriveLinks(values),
   };
 }
 

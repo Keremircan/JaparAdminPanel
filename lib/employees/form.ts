@@ -1,5 +1,3 @@
-import { DRIVE_LINK_KINDS, isSafeUrl, type DriveLinks } from "./types";
-
 export type EmployeeFormMode = "create" | "edit";
 
 export type EmployeeFormValues = {
@@ -11,13 +9,11 @@ export type EmployeeFormValues = {
   shift: string;
   hire_date: string;
   is_active: boolean;
-  drive_links: Record<keyof DriveLinks, string>;
 };
 
 export type EmployeeFormField =
-  | Exclude<keyof EmployeeFormValues, "drive_links" | "is_active">
-  | "password"
-  | `drive_links.${keyof DriveLinks}`;
+  | Exclude<keyof EmployeeFormValues, "is_active">
+  | "password";
 
 export type EmployeeFormState = {
   status: "idle" | "error" | "success";
@@ -30,7 +26,6 @@ export type EmployeeFormState = {
 export const PASSWORD_MIN_LENGTH = 6;
 // bcrypt 72 bayttan sonrasını yok sayar.
 const PASSWORD_MAX_BYTES = 72;
-const URL_MAX_LENGTH = 2000;
 const EMPLOYEE_CODE_PATTERN = /^[A-Za-z0-9._-]+$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -65,12 +60,6 @@ export function parseEmployeeForm(
     shift: text(formData, "shift"),
     hire_date: text(formData, "hire_date"),
     is_active: formData.get("is_active") === "on",
-    drive_links: {
-      folder: text(formData, "drive_links.folder"),
-      health_report: text(formData, "drive_links.health_report"),
-      leave_permit: text(formData, "drive_links.leave_permit"),
-      other: text(formData, "drive_links.other"),
-    },
   };
   const rawPassword = formData.get("password");
   const password = typeof rawPassword === "string" ? rawPassword : "";
@@ -109,24 +98,9 @@ export function parseEmployeeForm(
     }
   }
 
-  for (const kind of DRIVE_LINK_KINDS) {
-    const link = values.drive_links[kind];
-    if (link && (link.length > URL_MAX_LENGTH || !isSafeUrl(link))) {
-      errors[`drive_links.${kind}`] = "https:// ile başlayan geçerli bir bağlantı girin.";
-    }
-  }
-
   if (Object.keys(errors).length > 0) {
     return { ok: false, values, fieldErrors: errors };
   }
 
   return { ok: true, values, password: password.length > 0 ? password : null };
-}
-
-export function toDriveLinks(values: EmployeeFormValues): DriveLinks {
-  const links: DriveLinks = {};
-  for (const kind of DRIVE_LINK_KINDS) {
-    if (values.drive_links[kind]) links[kind] = values.drive_links[kind];
-  }
-  return links;
 }

@@ -9,7 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleAlert, FolderOpen, LoaderCircle } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { buttonPrimary, buttonSecondary, card, input } from "@/components/ui/styles";
@@ -20,11 +20,7 @@ import {
   type EmployeeFormState,
   type EmployeeFormValues,
 } from "@/lib/employees/form";
-import {
-  DRIVE_LINK_KINDS,
-  DRIVE_LINK_LABELS,
-  employeePath,
-} from "@/lib/employees/types";
+import { employeePath } from "@/lib/employees/types";
 
 const SHIFT_TYPES = ["Gündüz Vardiyası", "Gece Vardiyası"];
 
@@ -37,7 +33,6 @@ export const EMPTY_FORM_VALUES: EmployeeFormValues = {
   shift: "",
   hire_date: "",
   is_active: true,
-  drive_links: { folder: "", health_report: "", leave_permit: "", other: "" },
 };
 
 const initialState: EmployeeFormState = { status: "idle" };
@@ -299,39 +294,6 @@ function EmployeeFormFields({ mode, defaultValues, departments }: EmployeeFormPr
             className={input}
           />
         </Field>
-      </Section>
-
-      <Section
-        title="Doküman bağlantıları"
-        description="Google Drive'daki klasör ve belgelerin paylaşım bağlantıları. Dosyalar Drive'da kalır."
-      >
-        {DRIVE_LINK_KINDS.map((kind) => (
-          <Field
-            key={kind}
-            name={`drive_links.${kind}`}
-            label={DRIVE_LINK_LABELS[kind]}
-            error={errors[`drive_links.${kind}`]}
-            wide={kind === "folder"}
-          >
-            <div className="relative">
-              {kind === "folder" && (
-                <FolderOpen
-                  aria-hidden
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint"
-                />
-              )}
-              <input
-                {...fieldProps(`drive_links.${kind}`)}
-                type="url"
-                inputMode="url"
-                defaultValue={defaultValues.drive_links[kind]}
-                placeholder="https://drive.google.com/…"
-                autoComplete="off"
-                className={`${input} ${kind === "folder" ? "pl-9" : ""}`}
-              />
-            </div>
-          </Field>
-        ))}
       </Section>
 
       <div className="flex flex-col-reverse gap-2 border-t border-line bg-sunken/40 px-6 py-4 sm:flex-row sm:justify-end">
